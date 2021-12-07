@@ -118,10 +118,14 @@ def cancel_previous_build() {
 }
 
 def should_skip_ci(pr_number) {
-  withCredentials([string(credentialsId: 'jenkins-reader-apache', variable: 'TOKEN')]) {
+  withCredentials([usernamePassword(
+    credentialsId: 'jenkins-reader-apache',
+    usernameVariable: 'GITHUB_APP',
+    passwordVariable: 'TOKEN',
+    )]) {
     run_full_ci = sh (
       returnStatus: true,
-      script: "./tests/scripts/git_skip_ci.py '${pr_number}'",
+      script: "./tests/scripts/git_skip_ci.py --pr '${pr_number}'",
       label: 'Check if CI should be skipped',
     )
   }
@@ -164,11 +168,11 @@ stage('Sanity Check') {
           script: './tests/scripts/git_change_docs.sh',
           label: "Check for docs only changes",
         )
+        skip_ci = should_skip_ci(env.CHANGE_ID)
         sh (
           script: "${docker_run} ${ci_lint}  ./tests/scripts/task_lint.sh",
           label: "Run lint",
         )
-        skip_ci = should_skip_ci(env.CHANGE_ID)
       }
     }
   }
