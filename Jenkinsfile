@@ -118,10 +118,9 @@ def cancel_previous_build() {
 }
 
 def should_skip_ci(pr_number) {
-  withCredentials([usernamePassword(
-    credentialsId: 'jenkins-reader-apache',
-    usernameVariable: 'GITHUB_APP',
-    passwordVariable: 'TOKEN',
+  withCredentials([string(
+    credentialsId: 'tvm-bot-jenkins-reader',
+    variable: 'TOKEN',
     )]) {
     run_full_ci = sh (
       returnStatus: true,
