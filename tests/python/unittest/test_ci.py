@@ -15,14 +15,10 @@
 # specific language governing permissions and limitations
 # under the License.
 
-import os
 import pathlib
-import pytest
-import shutil
 import subprocess
-import tempfile
-import json
 import sys
+import tempfile
 
 import pytest
 
@@ -30,7 +26,7 @@ REPO_ROOT = pathlib.Path(__file__).resolve().parent.parent.parent.parent
 
 
 def test_skip_ci():
-    skip_ci_script = REPO_ROOT / "tests" / "scripts" / "git_skip_ci.sh"
+    skip_ci_script = REPO_ROOT / "tests" / "scripts" / "git_skip_ci.py"
 
     class TempGit:
         def __init__(self, cwd):
@@ -47,14 +43,17 @@ def test_skip_ci():
             # Jenkins git is too old and doesn't have 'git init --initial-branch'
             git.run("init")
             git.run("checkout", "-b", "main")
+            git.run("remote", "add", "origin", "https://github.com/apache/tvm.git")
             git.run("config", "user.name", "ci")
             git.run("config", "user.email", "email@example.com")
             git.run("commit", "--allow-empty", "--message", "base commit")
             for command in commands:
                 git.run(*command)
             pr_number = "1234"
-            proc = subprocess.run([str(skip_ci_script), pr_number], cwd=dir)
-            expected = 1 if should_skip else 0
+            proc = subprocess.run(
+                [str(skip_ci_script), "--pr", pr_number, "--pr-title", "[skip ci] test"], cwd=dir
+            )
+            expected = 0 if should_skip else 1
             assert proc.returncode == expected, why
 
     test(

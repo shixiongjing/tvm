@@ -74,6 +74,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description=help)
     parser.add_argument("--pr", required=True)
     parser.add_argument("--remote", default="origin", help="ssh remote to parse")
+    parser.add_argument(
+        "--pr-title", help="(testing) PR title to use instead of fetching from GitHub"
+    )
     args = parser.parse_args()
 
     branch = git(["rev-parse", "--abbrev-ref", "HEAD"])
@@ -83,10 +86,15 @@ if __name__ == "__main__":
     def check_pr_title():
         remote = git(["config", "--get", f"remote.{args.remote}.url"])
         user, repo = parse_remote(remote)
-        github = GitHubRepo(token=os.environ["TOKEN"], user=user, repo=repo)
-        pr = github.get(f"pulls/{args.pr}")
-        print("pr title:", pr["title"])
-        return pr["title"].startswith("[skip ci]")
+
+        if args.pr_title:
+            title = args.pr_title
+        else:
+            github = GitHubRepo(token=os.environ["TOKEN"], user=user, repo=repo)
+            pr = github.get(f"pulls/{args.pr}")
+            title = pr["title"]
+        print("pr title:", title)
+        return title.startswith("[skip ci]")
 
     if (
         args.pr != "null"
