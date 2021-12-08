@@ -122,13 +122,15 @@ def should_skip_ci(pr_number) {
     credentialsId: 'tvm-bot-jenkins-reader',
     variable: 'TOKEN',
     )]) {
-    run_full_ci = sh (
+    // Exit code of 1 means run full CI (or the script had an error, so run
+    // full CI just in case). Exit code of 0 means skip CI.
+    git_skip_ci_code = sh (
       returnStatus: true,
       script: "./tests/scripts/git_skip_ci.py --pr '${pr_number}'",
       label: 'Check if CI should be skipped',
     )
   }
-  return !run_full_ci
+  return git_skip_ci_code == 0
 }
 
 cancel_previous_build()
@@ -257,7 +259,7 @@ def cpp_unittest(image) {
 
 stage('Build') {
     parallel 'BUILD: GPU': {
-      if (skip_ci != 1) {
+      if (!skip_ci) {
         node('GPUBUILD') {
           ws(per_exec_ws('tvm/build-gpu')) {
             init_git()
@@ -272,7 +274,7 @@ stage('Build') {
     }
   },
   'BUILD: CPU': {
-    if (skip_ci != 1 && is_docs_only_build != 1) {
+    if (!skip_ci && is_docs_only_build != 1) {
       node('CPU') {
         ws(per_exec_ws('tvm/build-cpu')) {
           init_git()
@@ -302,7 +304,7 @@ stage('Build') {
     }
   },
   'BUILD: WASM': {
-    if (skip_ci != 1 && is_docs_only_build != 1) {
+    if (!skip_ci && is_docs_only_build != 1) {
       node('CPU') {
         ws(per_exec_ws('tvm/build-wasm')) {
           init_git()
@@ -325,7 +327,7 @@ stage('Build') {
     }
   },
   'BUILD: i386': {
-    if (skip_ci != 1 && is_docs_only_build != 1) {
+    if (!skip_ci && is_docs_only_build != 1) {
       node('CPU') {
         ws(per_exec_ws('tvm/build-i386')) {
           init_git()
@@ -342,7 +344,7 @@ stage('Build') {
     }
   },
   'BUILD: arm': {
-    if (skip_ci != 1 && is_docs_only_build != 1) {
+    if (!skip_ci && is_docs_only_build != 1) {
       node('ARM') {
         ws(per_exec_ws('tvm/build-arm')) {
           init_git()
@@ -359,7 +361,7 @@ stage('Build') {
     }
   },
   'BUILD: QEMU': {
-    if (skip_ci != 1 && is_docs_only_build != 1) {
+    if (!skip_ci && is_docs_only_build != 1) {
       node('CPU') {
         ws(per_exec_ws('tvm/build-qemu')) {
           init_git()
@@ -386,7 +388,7 @@ stage('Build') {
 
 stage('Unit Test') {
     parallel 'python3: GPU': {
-      if (skip_ci != 1 && is_docs_only_build != 1) {
+      if (!skip_ci && is_docs_only_build != 1) {
         node('TensorCore') {
           ws(per_exec_ws('tvm/ut-python-gpu')) {
             init_git()
@@ -414,7 +416,7 @@ stage('Unit Test') {
       }
     },
     'python3: CPU': {
-      if (skip_ci != 1 && is_docs_only_build != 1) {
+      if (!skip_ci && is_docs_only_build != 1) {
         node('CPU') {
           ws(per_exec_ws("tvm/ut-python-cpu")) {
             init_git()
@@ -434,7 +436,7 @@ stage('Unit Test') {
       }
     },
     'python3: i386': {
-      if (skip_ci != 1 && is_docs_only_build != 1) {
+      if (!skip_ci && is_docs_only_build != 1) {
         node('CPU') {
           ws(per_exec_ws('tvm/ut-python-i386')) {
             init_git()
@@ -456,7 +458,7 @@ stage('Unit Test') {
       }
     },
     'python3: arm': {
-      if (skip_ci != 1 && is_docs_only_build != 1) {
+      if (!skip_ci && is_docs_only_build != 1) {
         node('ARM') {
           ws(per_exec_ws('tvm/ut-python-arm')) {
             init_git()
@@ -478,7 +480,7 @@ stage('Unit Test') {
       }
     },
     'java: GPU': {
-      if (skip_ci != 1 && is_docs_only_build != 1 ) {
+      if (!skip_ci && is_docs_only_build != 1 ) {
         node('GPU') {
           ws(per_exec_ws('tvm/ut-java')) {
             init_git()
@@ -500,7 +502,7 @@ stage('Unit Test') {
 
 stage('Integration Test') {
   parallel 'topi: GPU': {
-  if (skip_ci != 1 && is_docs_only_build != 1) {
+  if (!skip_ci && is_docs_only_build != 1) {
     node('GPU') {
       ws(per_exec_ws('tvm/topi-python-gpu')) {
         init_git()
@@ -520,7 +522,7 @@ stage('Integration Test') {
   }
   },
   'frontend: GPU': {
-    if (skip_ci != 1 && is_docs_only_build != 1) {
+    if (!skip_ci && is_docs_only_build != 1) {
       node('GPU') {
         ws(per_exec_ws('tvm/frontend-python-gpu')) {
           init_git()
@@ -540,7 +542,7 @@ stage('Integration Test') {
     }
   },
   'frontend: CPU': {
-    if (skip_ci != 1 && is_docs_only_build != 1) {
+    if (!skip_ci && is_docs_only_build != 1) {
       node('CPU') {
         ws(per_exec_ws('tvm/frontend-python-cpu')) {
           init_git()
@@ -560,7 +562,7 @@ stage('Integration Test') {
     }
   },
   'docs: GPU': {
-    if (skip_ci != 1) {
+    if (!skip_ci) {
       node('TensorCore') {
         ws(per_exec_ws('tvm/docs-python-gpu')) {
           init_git()
