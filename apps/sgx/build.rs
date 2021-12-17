@@ -18,6 +18,7 @@
  */
 
 use std::process::Command;
+use std::io::{self, Write};
 
 macro_rules! mf_dir {
     ($p:literal) => {
@@ -40,6 +41,8 @@ fn main() {
         )
         .output()
         .expect("Failed to build model");
+    println!("status: {}", build_output.status);
+    io::stdout().write_all(&build_output.stdout).unwrap();
     assert!(
         ["model.o", "graph.json", "params.bin"]
             .iter()
@@ -57,7 +60,7 @@ fn main() {
     let sysroot = sysroot.trim();
     let mut llvm_tools_path = std::path::PathBuf::from(&sysroot);
     llvm_tools_path.push("lib/rustlib/x86_64-unknown-linux-gnu/bin");
-
+    println!("Start adding links here...");
     Command::new("rustup")
         .args(&["component", "add", "llvm-tools-preview"])
         .output()
@@ -66,7 +69,7 @@ fn main() {
     std::process::Command::new(llvm_tools_path.join("llvm-objcopy"))
         .arg("--globalize-symbol=__tvm_module_startup")
         .arg("--remove-section=.ctors")
-        .arg(&format!("{}/model.o", out_dir))
+        .arg(&format!("{}/model.o", out_dir)) 
         .output()
         .expect("gould not gloablize startup function");
 
@@ -76,7 +79,6 @@ fn main() {
         .arg(&format!("{}/model.o", out_dir))
         .output()
         .expect("failed to package model archive");
-
     println!("cargo:rustc-link-lib=static=model");
     println!("cargo:rustc-link-search=native={}", out_dir);
 }
