@@ -60,7 +60,7 @@ def bert_whole():
     #target = "llvm --system-lib"
     ctx = tvm.cpu()
 
-    config = BertConfig.from_pretrained("bert-base-uncased", num_hidden_layers = 3)
+    config = BertConfig.from_pretrained("bert-base-uncased", num_hidden_layers = 12)
 
     
     model = BertModel(config)
