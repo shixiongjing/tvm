@@ -60,7 +60,24 @@ def bert_whole():
     #target = "llvm --system-lib"
     ctx = tvm.cpu()
 
-    config = BertConfig.from_pretrained("bert-base-uncased", num_hidden_layers = 12)
+    config = BertConfig.from_pretrained("bert-base-uncased", num_hidden_layers = 3, return_dict=False)
+
+    enc = BertTokenizer.from_pretrained("bert-base-uncased")
+
+    # Tokenizing input text
+    text = "[CLS] Who was Jim Henson ? [SEP] Jim Henson was a puppeteer [SEP]"
+    tokenized_text = enc.tokenize(text)
+
+        # Masking one of the input tokens
+    masked_index = 8
+    tokenized_text[masked_index] = '[MASK]'
+    indexed_tokens = enc.convert_tokens_to_ids(tokenized_text)
+    segments_ids = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1]
+
+        # Creating a dummy input
+    tokens_tensor = torch.tensor([indexed_tokens])
+    segments_tensors = torch.tensor([segments_ids])
+    dummy_input = [tokens_tensor, segments_tensors]
 
     
     model = BertModel(config)
@@ -68,16 +85,19 @@ def bert_whole():
     for p in model.parameters():
         p.requires_grad_(False)
 
-    shape_list = [(i.debugName().split('.')[0], i.type().sizes()) for i in  list(model.graph.inputs())[1:]]
-    mod, params = tvm.relay.frontend.pytorch.from_pytorch(model, shape_list, default_dtype="float32")
+    traced_model = torch.jit.trace(model, (tokens_tensor, segments_tensors)).eval()
+    input_1 = 'input_ids'
+    input_2 = 'input.2'
+    shape_list = [(input_1, list(tokens_tensor.shape)), 
+                  (input_2, list(segments_tensors.shape))]
 
+    mod, params = relay.frontend.from_pytorch(traced_model, shape_list)
+    # with tvm.autotvm.apply_history_best(log_filename):
     tvm.relay.backend.te_compiler.get().clear()
 
     # with tvm.autotvm.apply_history_best(log_filename):
     with tvm.transform.PassContext(opt_level=3, required_pass=["FastMath"]):
-        graph, lib, params = tvm.relay.build(mod,
-                                     target=target,
-                                     params=params)
+        graph, lib, params = tvm.relay.build(mod, target=target, params=params)
 
     # Save model
     print('saving model...')
