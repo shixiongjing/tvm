@@ -22,13 +22,15 @@
 import time
 import argparse
 import numpy as np
+import mxnet as mx
+import gluonnlp as nlp
 import tvm
 from tvm import relay
 import tvm.contrib.graph_executor as executor
 import tvm.testing
 import sys
 
-mode = 1
+mode = 0
 # 0 for original bert
 # 1 for bert from traced
 # 2 for bert cropped layer
@@ -275,41 +277,39 @@ def bert_whole:
     import os
     import transformers
     from transformers import BertModel, BertTokenizer, BertConfig
-    target = "llvm -mcpu=core-avx2"
-    #target = "llvm --system-lib"
+    target = "llvm --system-lib"
     ctx = tvm.cpu()
 
-    config = BertConfig.from_pretrained("bert-base-uncased", num_hidden_layers = 3)
+    enc = BertTokenizer.from_pretrained("bert-base-uncased")
 
     # Tokenizing input text
-    #text = "[CLS] Who was Jim Henson ? [SEP] Jim Henson was a puppeteer [SEP]"
-    #tokenized_text = enc.tokenize(text)
+    text = "[CLS] Who was Jim Henson ? [SEP] Jim Henson was a puppeteer [SEP]"
+    tokenized_text = enc.tokenize(text)
 
     # Masking one of the input tokens
-    #masked_index = 8
-    #tokenized_text[masked_index] = '[MASK]'
-    #indexed_tokens = enc.convert_tokens_to_ids(tokenized_text)
-    #segments_ids = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1]
+    masked_index = 8
+    tokenized_text[masked_index] = '[MASK]'
+    indexed_tokens = enc.convert_tokens_to_ids(tokenized_text)
+    segments_ids = [0, 0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1, 1]
 
     # Creating a dummy input
-    #tokens_tensor = torch.tensor([indexed_tokens])
-    #segments_tensors = torch.tensor([segments_ids])
-    #dummy_input = [tokens_tensor, segments_tensors]
+    tokens_tensor = torch.tensor([indexed_tokens])
+    segments_tensors = torch.tensor([segments_ids])
+    dummy_input = [tokens_tensor, segments_tensors]
 
     # If you are instantiating the model with `from_pretrained` you can also easily set the TorchScript flag
-    #model = BertModel.from_pretrained("bert-base-uncased", torchscript=True)
-    model = BertModel(config)
+    model = BertModel.from_pretrained("bert-base-uncased", torchscript=True)
     model.eval()
     for p in model.parameters():
         p.requires_grad_(False)
 
-    #traced_model = torch.jit.trace(model, [tokens_tensor, segments_tensors])
-    #traced_model.eval()
-    #for p in traced_model.parameters():
-    #    p.requires_grad_(False)
+    traced_model = torch.jit.trace(model, [tokens_tensor, segments_tensors])
+    traced_model.eval()
+    for p in traced_model.parameters():
+        p.requires_grad_(False)
 
-    shape_list = [(i.debugName().split('.')[0], i.type().sizes()) for i in  list(model.graph.inputs())[1:]]
-    mod, params = tvm.relay.frontend.pytorch.from_pytorch(model, shape_list, default_dtype="float32")
+    shape_list = [(i.debugName().split('.')[0], i.type().sizes()) for i in  list(traced_module.graph.inputs())[1:]]
+    mod, params = tvm.relay.frontend.pytorch.from_pytorch(traced_module, shape_list, default_dtype="float32")
 
     tvm.relay.backend.te_compiler.get().clear()
 

@@ -1491,7 +1491,9 @@ dependencies = [
 
 [[package]]
 name = "tvm-build"
-version = "0.2.3-alpha.0"
+version = "0.2.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b77b66e087a574f9d776bf6f7bc355c6645697457970abe3b4879543ea8bb97a"
 dependencies = [
  "anyhow",
  "cmake",
